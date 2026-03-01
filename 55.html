@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Emotion AI Lab</title>
+
+<style>
+body {
+  margin:0;
+  font-family:Segoe UI;
+  background:linear-gradient(135deg,#667eea,#764ba2);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  color:#333;
+}
+
+.card{
+  background:white;
+  width:95%;
+  max-width:800px;
+  padding:25px;
+  border-radius:20px;
+  box-shadow:0 20px 40px rgba(0,0,0,0.2);
+  text-align:center;
+}
+
+h1{color:#5a4fcf;}
+
+button{
+  padding:10px 18px;
+  margin:6px;
+  border:none;
+  border-radius:10px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+button:hover{transform:scale(1.05);}
+
+.level{margin-bottom:10px;font-weight:bold;}
+.timer{color:#e74c3c;font-weight:bold;}
+.hidden{display:none;}
+input, textarea{
+  width:90%;
+  padding:10px;
+  margin:10px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h1>Emotion AI Lab</h1>
+
+<div id="gameSection">
+
+<div class="level" id="levelInfo">Деңгей: 1</div>
+<div class="timer">⏳ Уақыт: <span id="time">15</span></div>
+
+<p id="situation"></p>
+
+<div id="buttons"></div>
+
+<p id="result"></p>
+<p id="score"></p>
+
+<button onclick="nextQuestion()">Келесі</button>
+
+<hr>
+
+<button onclick="showAlgorithm()">🧠 Эмоция алгоритмі</button>
+<button onclick="showCustom()">✍ Өз ситуацияңды енгіз</button>
+
+</div>
+
+<div id="algorithmSection" class="hidden">
+<h2>Эмоцияны басқару алгоритмі</h2>
+<p id="algorithmText"></p>
+<button onclick="backToGame()">⬅ Артқа</button>
+</div>
+
+<div id="customSection" class="hidden">
+<h2>Өз ситуацияңды жаз</h2>
+<textarea id="customInput" rows="4" placeholder="Ситуацияны жазыңыз..."></textarea>
+<br>
+<button onclick="analyzeCustom()">AI талдау</button>
+<p id="customResult"></p>
+<button onclick="backToGame()">⬅ Артқа</button>
+</div>
+
+</div>
+
+<script>
+
+const situations = [
+{ text:"Сенің досың сенсіз топ құрды.", correct:"Реніш" },
+{ text:"Сен олимпиададан 1-орын алдың.", correct:"Қуаныш" },
+{ text:"Мұғалім сенің еңбегіңді бағаламады.", correct:"Ашу" },
+{ text:"Бейтаныс жерде жалғыз қалдың.", correct:"Қорқыныш" },
+{ text:"Сынып алдында қате жауап бердің.", correct:"Ұялу" }
+];
+
+const emotions = ["Реніш","Қуаныш","Ашу","Қорқыныш","Ұялу"];
+
+let current=0;
+let score=0;
+let level=1;
+let timeLeft=15;
+let timer;
+
+function startTimer(){
+  timeLeft=15;
+  document.getElementById("time").innerText=timeLeft;
+  timer=setInterval(()=>{
+    timeLeft--;
+    document.getElementById("time").innerText=timeLeft;
+    if(timeLeft<=0){
+      clearInterval(timer);
+      document.getElementById("result").innerText="⏰ Уақыт бітті!";
+    }
+  },1000);
+}
+
+function loadQuestion(){
+  clearInterval(timer);
+  document.getElementById("result").innerText="";
+  let s=situations[current];
+  document.getElementById("situation").innerText=s.text;
+
+  let btnDiv=document.getElementById("buttons");
+  btnDiv.innerHTML="";
+  emotions.forEach(e=>{
+    let btn=document.createElement("button");
+    btn.innerText=e;
+    btn.onclick=()=>checkAnswer(e);
+    btnDiv.appendChild(btn);
+  });
+
+  document.getElementById("levelInfo").innerText="Деңгей: "+level;
+  startTimer();
+}
+
+function checkAnswer(choice){
+  clearInterval(timer);
+  let correct=situations[current].correct;
+
+  if(choice===correct){
+    score++;
+    document.getElementById("result").innerText="✅ Дұрыс!";
+  }else{
+    document.getElementById("result").innerText="🤖 AI: "+correct;
+  }
+
+  document.getElementById("score").innerText="Ұпай: "+score;
+}
+
+function nextQuestion(){
+  current++;
+  if(current%3===0) level++;
+  if(current<situations.length){
+    loadQuestion();
+  }else{
+    document.getElementById("gameSection").innerHTML=
+    "<h2>🎉 Ойын аяқталды</h2><p>Ұпай: "+score+"</p><button onclick='location.reload()'>Қайта бастау</button>";
+  }
+}
+
+function showAlgorithm(){
+  document.getElementById("gameSection").classList.add("hidden");
+  document.getElementById("algorithmSection").classList.remove("hidden");
+  document.getElementById("algorithmText").innerText=
+  "Егер эмоция = Ашу → 1. Дем алу 2. Себебін анықтау 3. Шешім айту\n"+
+  "Егер эмоция = Қорқыныш → 1. Қауіп бар ма тексеру 2. Көмек сұрау\n"+
+  "Егер эмоция = Реніш → 1. Сезімді мойындау 2. Ашық айту";
+}
+
+function showCustom(){
+  document.getElementById("gameSection").classList.add("hidden");
+  document.getElementById("customSection").classList.remove("hidden");
+}
+
+function analyzeCustom(){
+  let text=document.getElementById("customInput").value;
+
+  fetch("http://localhost:3000/analyze",{
+    method:"POST",
+    headers:{ "Content-Type":"application/json" },
+    body:JSON.stringify({ text })
+  })
+  .then(res=>res.json())
+  .then(data=>{
+    document.getElementById("customResult").innerText=
+    "🤖 AI талдауы: "+data.emotion;
+  });
+}
+
+function backToGame(){
+  document.getElementById("algorithmSection").classList.add("hidden");
+  document.getElementById("customSection").classList.add("hidden");
+  document.getElementById("gameSection").classList.remove("hidden");
+}
+
+loadQuestion();
+
+</script>
+
+</body>
+</html>
